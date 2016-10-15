@@ -1,0 +1,12 @@
+digraph {
+	0 [label=Wander]
+	1 [label=Attack]
+	2 [label=Evade]
+	3 [label="Find Aid"]
+		0 -> 1 [label="Player is near  "]
+		1 -> 0 [label="Player is out of sight  "]
+		1 -> 2 [label="Player is attacking back  "]
+		2 -> 1 [label="Player is idle  "]
+		2 -> 3 [label="Healthpoints are low  "]
+		3 -> 0 [label="Found aid  "]
+}

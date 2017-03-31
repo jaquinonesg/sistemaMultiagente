@@ -1,0 +1,431 @@
+#!/usr/bin/env python
+
+
+from __future__ import generators
+import json
+
+
+class State(object):
+    def __init__(self, name, description, id, state_interactions, output_interactions, new_perception, new_action):
+        self.name = name
+        self.description = description
+        self.id = id
+        self.state_interactions = state_interactions
+        self.output_interactions = output_interactions
+        self.new_perception = new_perception
+        self.new_action = new_action
+
+
+# - 0 1 2 3 ... states
+# 0
+# 1
+# 2
+# ..
+# perceptions
+
+
+class AbstractAgent(object):
+    def state_info(self):
+        print (self.states[self.current_state].name, ": ", self.states[self.current_state].description)
+
+    def __init__(self, states, description):
+        self.description = description
+        self.memory = []
+        self.current_state = 0
+        self.actions = []
+        self.perceptions = []
+        self.states = states
+        self.next_state_function_matrix = []
+        self.output_function_matrix = []
+
+        for i in range(len(self.states)):  # Building of the matrix and the alphabets
+            state = self.states[i]
+            self.perceptions.append(state.new_perception)
+            self.actions.append(state.new_action)
+            if i == 0:
+                self.next_state_function_matrix.append(state.state_interactions)
+                self.output_function_matrix.append(state.output_interactions)
+            else:
+                for j in range(state.id+1):
+                    if j == 0:
+                        self.next_state_function_matrix.append([state.state_interactions[j]])
+                        self.output_function_matrix.append([state.output_interactions[j]])
+                    else:
+                        self.next_state_function_matrix[state.id].append(state.state_interactions[j])
+                        self.output_function_matrix[state.id].append(state.output_interactions[j])
+                for j in range(state.id):
+                    self.next_state_function_matrix[state.id-1-j].append(state.state_interactions[state.id+1+j])
+                    self.output_function_matrix[state.id-1-j].append(state.output_interactions[state.id + 1+ j])
+        self.state_info()
+
+    def alphabet_in_check(self, entry):
+        for i in range(len(self.states)):
+            check = self.states[len(self.states)-1-i].new_perception(self, entry)
+            if check:
+                return len(self.states)-1-i
+
+    def output_function(self, index, entry):
+        self.actions[index](self, entry)
+
+    def behave(self, entry):
+        perception = self.alphabet_in_check(entry)
+        action = self.output_function_matrix[perception][self.current_state]
+        self.output_function(action, entry)
+        self.current_state = self.next_state_function_matrix[perception][self.current_state]
+        self.state_info()
+
+    def add_nodes_edges(self, type_graph):
+        nodes = []
+        for n in self.states:
+            nodes.append((str(n.id), {'label': n.name}))
+        for h in nodes:
+            if isinstance(h, tuple):
+                type_graph.node(h[0], **h[1])
+            else:
+                type_graph.node(h)
+        edges = []
+
+        for i in range(len(self.next_state_function_matrix)):
+            for j in range(len(self.next_state_function_matrix)):
+                if self.next_state_function_matrix[i][j] == j:
+                    pass
+                else:
+                    info_request = "info_edge_from_" + str(j)
+                    edge_name = self.perceptions[i](self, info_request) + "  "
+                    edges.append(((str(j), str(self.next_state_function_matrix[i][j])), {'label': edge_name}))
+        for e in edges:
+            if isinstance(e[0], tuple):
+                type_graph.edge(*e[0], **e[1])
+            else:
+                type_graph.edge(*e)
+        return type_graph
+
+    def apply_styles(self, type_graph, styles):
+        type_graph.graph_attr.update(
+            ('graph' in styles and styles['graph']) or {}
+        )
+        type_graph.node_attr.update(
+            ('nodes' in styles and styles['nodes']) or {}
+        )
+        type_graph.edge_attr.update(
+            ('edges' in styles and styles['edges']) or {}
+        )
+        return type_graph
+
+    def render_agent(self):
+        import graphviz as gv
+        digraph = gv.Digraph(format='svg')
+        render_graphic = self.add_nodes_edges(digraph)
+        render_graphic.render('render/agente')   #render the state diagram
+        print ("########### FIVE TUPLE ###########")  #Render the five tuple
+        print ("States: {")
+        for i in self.states:
+            print ("            ", i.id, ". ", i.name, ":  ", i.description)
+        print ("                }")
+        print ("")    #First the States
+        print ("Input alphabet: {")
+        #for i in range(len(self.states)):
+            #for j in range(len(self.states)):
+                #edge_name = self.perceptions[i](self, "info_edge_from_" + str(j))
+                #if edge_name not = "":
+                #   list =
+                #    print ("            ", self.states[i].id, ". ", self.states[i].name, ":  ", self.states[i].description)
+        #print ("                }")
+        #print ("")
+
+    def disperse_agent(self):
+        f = open('agent.py', 'r')
+        data = f.read()
+        data_split = data.split("##########################AGENTE##############################")
+        data_split_split = data_split[2].split('\n')
+        name= "#" + self.description
+        if (data_split_split[1]==name):
+            print (data_split_split[1])
+        #with open('data.txt', 'w') as outfile:
+        #    json.dump(data_split[0], outfile)
+
+
+
+
+########################################################
+########################################################
+
+
+class AgentFactory:
+    factories = {1: 'Reflex', 2: 'Reactive'}
+
+    def add_factory(agent_id, agent_factory):
+        agent_factory.factories.put[agent_id] = agent_factory
+
+    add_factory = staticmethod(add_factory)
+
+    # A Template Method:
+    def create_agent(agent_id):
+
+        if agent_id not in AgentFactory.factories:
+            AgentFactory.factories[agent_id] = eval(agent_id + '.Factory()')
+        return AgentFactory.factories[agent_id].create()
+
+    create_agent = staticmethod(create_agent)
+
+
+########################################################
+########################################################
+
+class Reflex(AbstractAgent):
+    def behave(self):
+        print("behave.reflex")
+
+
+    class Factory:
+        def create(self): return Reflex()
+
+########################################################
+########################################################
+
+
+class Reactive(AbstractAgent):
+
+    def behave(self):
+        print("behave.Reactive")
+
+    class Factory:
+        def create(self): return Reactive()
+
+
+########################################################
+########################################################
+
+
+class Utility(AbstractAgent):
+
+    def behave(self):
+        print("behave.Utility")
+
+    class Factory:
+        def create(self): return Utility()
+
+
+########################################################
+########################################################
+
+
+class Rational(AbstractAgent):
+
+    def behave(self):
+        print("behave.Rational")
+
+    class Factory:
+        def create(self): return Rational()
+
+
+########################################################
+########################################################
+
+
+class Social(AbstractAgent):
+
+    def behave(self):
+        print("behave.Social")
+
+    class Factory:
+        def create(self): return Social()
+
+
+
+##########################AGENTE##############################
+#calculator
+
+def create_calculator():
+
+    def new_perception(self, entry):
+        return True
+
+    def new_action(self, entry):
+        print ("Invalid entry: ", entry)
+
+    state_interactions = [0]
+    output_interactions = [0]
+    waiting_number = State("Waiting Number", "Entry any real number", 0, state_interactions,output_interactions, new_perception, new_action)
+    states_calculator = []
+    states_calculator.append(waiting_number)
+    ##state created##
+
+    def new_action1(self, entry):
+        self.memory.append(entry)
+        print ("Stored: ", entry)
+
+    def new_perception1(self, entry):
+        if entry == "info_edge_from_0":
+            return "First Real number"
+        if entry == "info_edge_from_2":
+            return "Second Real number"
+        try:
+            check = float(entry)
+            return True
+        except ValueError:
+            return False
+
+    state_interactions = [1, 1, 1]
+    output_interactions = [1, 0, 0]
+    waiting_operator = State("Waiting Operator", "Entry +, -, *, /", 1, state_interactions, output_interactions, new_perception1, new_action1)
+    states_calculator.append(waiting_operator)
+    ##state created##
+
+    def new_perception2(self, entry):
+        if entry == "info_edge_from_1":
+            return "Operators (+, -, *, /)"
+        operators = ["+", "-", "*", "/"]
+        if entry in operators:
+            return True
+        else:
+            return False
+
+    def new_action2(self, entry):
+        if self.memory[1] == "+":
+            print ("solution: ", float(self.memory[0]) + float(entry))
+            self.memory.clear()
+        else:
+            if self.memory[1] == "-":
+                print ("solution: ", float(self.memory[0]) - float(entry))
+                self.memory.clear()
+            else:
+                if self.memory[1] == "*":
+                    print ("solution: ", float(self.memory[0]) * float(entry))
+                    self.memory.clear()
+                else:
+                    print ("solution: ", float(self.memory[0]) / float(entry))
+                    self.memory.clear()
+
+    state_interactions = [0, 2, 2, 0, 2]
+    output_interactions = [0, 1, 0, 2, 0]
+    waiting_final_number = State("Waiting Final number", "Entry second number", 2, state_interactions, output_interactions, new_perception2, new_action2)
+    states_calculator.append(waiting_final_number)
+    ##state created##
+
+    return AbstractAgent(states_calculator, "calculator")
+    # -   Waiting_number    Waiting_operator       Waiting_second_number       states
+    #
+    # 0   Waiting_number    Waiting_operator       Waiting_second_number
+    # 1   Waiting_operator  Waiting_operator       Waiting_number (next state)
+    # 2   Waiting_number    Waiting_second_number  Waiting_second_number
+    # perceptions
+    # -   0 1 2  states
+    #
+    # 0   0 0 0
+    # 1   1 0 2     (output)
+    # 2   0 1 0
+    # perceptions
+
+
+
+##########################AGENTE##############################
+#game
+
+def create_game():
+    def new_perception(self, entry):
+        return True
+
+    def new_action(self, entry):
+        print ("Do nothing!")
+
+    state_interactions = [0]
+    output_interactions = [0]
+    wander = State("Wander", "New State", 0, state_interactions,output_interactions, new_perception, new_action)
+    states_game = []
+    states_game.append(wander)
+    ##state created##
+
+    def new_action1(self, entry):
+        if entry == "Player is near":
+            print ("Prepare shotgun!")
+        if entry == "Player is out of sight":
+            print ("Relax mode!")
+
+    def new_perception1(self, entry):
+        if entry == "info_edge_from_0":
+            return "Player is near"
+        if entry == "info_edge_from_1":
+            return "Player is out of sight"
+        if entry == "Player is near":
+            if self.current_state == 0:
+                return True
+            else:
+                return False
+        if entry == "Player is out of sight":
+            if self.current_state == 1:
+                return True
+            else:
+                return False
+
+    state_interactions = [1, 0, 1]
+    output_interactions = [1, 1, 0]
+    attack = State("Attack", "New State", 1, state_interactions, output_interactions, new_perception1, new_action1)
+    states_game.append(attack)
+    ##state created##
+
+    def new_perception2(self, entry):
+        if entry == "info_edge_from_2":
+            return "Player is idle"
+        if entry == "info_edge_from_1":
+            return "Player is attacking back"
+        if entry == "Player is idle":
+            if self.current_state == 2:
+                return True
+            else:
+                return False
+        if entry == "Player is attacking back":
+            if self.current_state == 1:
+                return True
+            else:
+                return False
+
+    def new_action2(self, entry):
+        if entry == "Player is idle":
+            print ("Vendetta!")
+        if entry == "Player is attacking back":
+            print ("OMG!")
+
+    state_interactions = [0, 2, 1, 2, 2]
+    output_interactions = [0, 2, 2, 0, 0]
+    evade = State("Evade", "New State", 2, state_interactions, output_interactions, new_perception2, new_action2)
+    states_game.append(evade)
+    ##state created##
+
+    def new_perception3(self, entry):
+        if entry == "info_edge_from_2":
+            return "Healthpoints are low"
+        if entry == "info_edge_from_3":
+            return "Found aid"
+        if entry == "Healthpoints are low":
+            return True
+        if entry == "Found aid":
+            return True
+
+    def new_action3(self, entry):
+        if entry == "Healthpoints are low":
+            print ("I'm not good!")
+        if entry == "Found aid":
+            print ("That's better!")
+
+    state_interactions = [0, 1, 3, 0, 3, 3, 3]
+    output_interactions = [0, 0, 3, 0, 0, 0, 0]
+    find_aid = State("Find Aid", "New State", 3, state_interactions, output_interactions, new_perception3, new_action3)
+    states_game.append(find_aid)
+    ##state created##
+
+    return AbstractAgent(states_game, "game")
+    # -   0 1 2 3  states
+    #
+    # 0   0 1 2 3
+    # 1   1 0 2 3    (next state)
+    # 2   0 1 3 0
+    # 3
+    # perceptions
+    # -   0 1 2 3  states
+    #
+    # 0   0 0 0 0
+    # 1   1 1 0 0     (output)
+    # 2   0 2 2 0
+    # 3   0 0 3 0
+    # perceptions

@@ -1,8 +1,0 @@
-digraph {
-	0 [label="Waiting Number"]
-	1 [label="Waiting Operator"]
-	2 [label="Waiting Final number"]
-		0 -> 1 [label="First Real number  "]
-		2 -> 0 [label="Second Real number  "]
-		1 -> 2 [label="Operators (+, -, *, /)  "]
-}
